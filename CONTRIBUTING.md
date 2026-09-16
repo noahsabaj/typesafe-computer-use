@@ -13,7 +13,7 @@ so a stall can be replayed offline with `--image`.
   and handed over as state.
 - Free text only ever comes from `writer.py`, with a structured reply and a
   code-side guard.
-- Platform calls live in `macos.py` only.
+- Platform calls live in `macos.py` and `windows.py` only, behind the names `host.py` lists.
 - Never add a path that types a password.
 
 ## Before a pull request

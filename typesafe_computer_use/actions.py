@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import anthropic
 from typesafe_sdk import TypeSafeClient
 
-from . import macos
+from . import host
 from .config import SITES
 from .decide import Decision, verify_typed
 from .models import Item, Screen
@@ -37,7 +37,7 @@ def perform(decision: Decision, screen: Screen, items: list[Item], ctx: Context)
     by_index = {str(it.index): it for it in items}
     if key in by_index:
         item = by_index[key]
-        macos.click_at(screen.to_points(item))
+        host.click_at(screen.to_points(item))
         return f"clicked {item.text!r}"
     handler = _HANDLERS.get(key)
     if handler is None:
@@ -46,7 +46,7 @@ def perform(decision: Decision, screen: Screen, items: list[Item], ctx: Context)
 
 
 def _switch_to_browser(decision, screen, items, ctx: Context) -> str:
-    if macos.activate(ctx.browser):
+    if host.activate(ctx.browser):
         return f"activated {ctx.browser}"
     return f"switch_to_browser failed: {ctx.browser} did not come to the front"
 
@@ -55,7 +55,7 @@ def _open_site(decision: Decision, screen, items, ctx: Context) -> str:
     url = SITES.get(decision.site.choice) or (compose_url(ctx.writer, ctx.goal, ctx.history) if ctx.writer else "")
     if not url:
         return "open_site refused: no known site matches and no writer available to propose a URL"
-    if macos.open_url(ctx.browser, url):
+    if host.open_url(ctx.browser, url):
         return f"opened {url}"
     return f"open_site failed: opened {url} but {ctx.browser} did not come to the front"
 
@@ -63,7 +63,7 @@ def _open_site(decision: Decision, screen, items, ctx: Context) -> str:
 def _type_email(decision, screen: Screen, items, ctx: Context) -> str:
     if not (screen.field and screen.field.is_text):
         return "type_email refused: no text field is focused"
-    macos.type_text(ctx.email or "")
+    host.type_text(ctx.email or "")
     return "typed email"
 
 
@@ -75,18 +75,18 @@ def _type_text(decision, screen: Screen, items, ctx: Context) -> str:
     text = compose_text(ctx.writer, ctx.goal, screen, items, ctx.history)
     if not text:
         return "type_text refused: writer declined to fill this field"
-    macos.type_text(text)
+    host.type_text(text)
     time.sleep(0.3)
-    p = verify_typed(ctx.typesafe, ctx.goal, screen.field, text, macos.focused_field())
+    p = verify_typed(ctx.typesafe, ctx.goal, screen.field, text, host.focused_field())
     if p < VERIFY_THRESHOLD:
-        macos.clear_field()
+        host.clear_field()
         return f"typed {text!r} into {screen.field.label!r} but verification failed ({p:.2f}); cleared it"
     return f"typed {text!r} into {screen.field.label!r} (verified {p:.2f})"
 
 
 def _key(name: str, description: str):
     def handler(decision, screen, items, ctx) -> str:
-        macos.press(name)
+        host.press(name)
         return description
 
     return handler
@@ -94,7 +94,7 @@ def _key(name: str, description: str):
 
 def _scroll(lines: int, description: str):
     def handler(decision, screen, items, ctx) -> str:
-        macos.scroll(lines)
+        host.scroll(lines)
         return description
 
     return handler

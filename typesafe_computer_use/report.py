@@ -8,10 +8,10 @@ from pathlib import Path
 
 from PIL import ImageDraw, ImageFont
 
+from . import host
 from .decide import base_state, item_criteria, kind_criteria, site_criteria
 from .models import Item, Screen
 
-FONT_PATH = "/System/Library/Fonts/Helvetica.ttc"
 RULE = "=" * 78
 
 
@@ -75,7 +75,7 @@ def annotate(screen: Screen, items: list[Item], chosen: str, out: Path) -> None:
     image = screen.image.copy()
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype(FONT_PATH, int(11 * screen.scale))
+        font = ImageFont.truetype(host.FONT_PATH, int(11 * screen.scale))
     except OSError:
         font = ImageFont.load_default()
     for it in items:

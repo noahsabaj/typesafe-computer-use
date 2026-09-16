@@ -12,7 +12,6 @@ DEFAULT_MIN_CONFIDENCE = 0.4
 DEFAULT_STEPS = 12
 DEFAULT_DELAY = 2.0
 DEFAULT_WRITER_MODEL = "claude-haiku-4-5"
-DEFAULT_BROWSER = "Google Chrome"
 
 # Sites the classifier can pick by name. Anything else goes through the writer.
 SITES: dict[str, str] = {
@@ -40,7 +39,9 @@ def load_dotenv(path: Path) -> None:
 
 
 def browser() -> str:
-    return os.environ.get("CLICKER_BROWSER", DEFAULT_BROWSER)
+    from . import host
+
+    return os.environ.get("CLICKER_BROWSER", host.DEFAULT_BROWSER)
 
 
 def writer_model() -> str:

@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 import time
 from pathlib import Path
 
-from . import config, macos
+from . import config, host
 from .actions import Context
 from .perception import capture, ocr
 from .report import annotate, render_payload
@@ -42,7 +41,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     _prepare()
-    if args.act and not macos.accessibility_trusted():
+    if args.act and not host.accessibility_trusted():
         sys.exit("this terminal lacks Accessibility permission; grant it in System Settings > Privacy & Security")
     writer = make_writer()
     if writer is None:
@@ -105,5 +104,5 @@ def inspect(argv: list[str] | None = None) -> None:
     print(f"app={screen.app!r} url={screen.url!r} blocks={len(items)} field={screen.field.role if screen.field else None}")
     print(f"  {annotated}\n  {text}")
     if not args.no_open:
-        subprocess.run(["open", str(annotated)], check=False)
-        subprocess.run(["open", "-t", str(text)], check=False)
+        host.open_file(annotated)
+        host.open_file(text, as_text=True)

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from typesafe_sdk import TypeSafeClient
 
-from . import macos
+from . import host
 from .actions import Context, is_noop, perform
 from .config import DEFAULT_DELAY, DEFAULT_MIN_CONFIDENCE, DEFAULT_STEPS, MAX_OPTIONS
 from .decide import decide
@@ -83,7 +83,7 @@ def run(cfg: RunConfig, ctx_factory) -> RunState:
 
 
 def run_step(cfg: RunConfig, ctx: Context, state: RunState, step: int, log: Log) -> bool:
-    macos.check_abort()
+    host.check_abort()
     screen = capture(cfg.image, cfg.app, cfg.url, ctx.browser)
     items = ocr(screen, MAX_OPTIONS, cfg.goal)
     prefix = cfg.out / f"step-{step:02d}"
@@ -153,5 +153,5 @@ def run_step(cfg: RunConfig, ctx: Context, state: RunState, step: int, log: Log)
             return False
     else:
         state.consecutive_noops = 0
-    macos.sleep_watching(cfg.delay)
+    host.sleep_watching(cfg.delay)
     return True

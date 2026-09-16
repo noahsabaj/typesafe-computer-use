@@ -8,6 +8,7 @@ from PIL import Image
 
 TEXT_ROLES = {"AXTextField", "AXTextArea", "AXSearchField", "AXComboBox"}
 Box = tuple[float, float, float, float]  # x1, y1, x2, y2 in capture pixels
+Line = tuple[str, float, Box]  # one OCR line: text, confidence, box
 
 
 class Abort(Exception):

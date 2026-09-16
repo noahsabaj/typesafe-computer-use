@@ -1,7 +1,7 @@
 """macOS adapter: synthetic input, app control, screen capture, and the focused accessibility element.
 
 This is the only module that touches Quartz, ApplicationServices, or AppleScript.
-A Linux adapter would provide the same functions over xdotool and AT-SPI.
+Every adapter exposes the same names; see host.py for the switch and windows.py for the Windows one.
 """
 
 from __future__ import annotations
@@ -13,11 +13,14 @@ from pathlib import Path
 
 import ApplicationServices as AS
 import Quartz
+from ocrmac import ocrmac
 from PIL import Image
 
 from .config import ABORT_CORNER_PX
-from .models import Abort, Field
+from .models import Abort, Field, Line
 
+DEFAULT_BROWSER = "Google Chrome"
+FONT_PATH = "/System/Library/Fonts/Helvetica.ttc"
 KEYCODES = {"return": 36, "tab": 48, "escape": 53, "a": 0, "delete": 51}
 
 # ------------------------------------------------------------------ escape hatch
@@ -147,6 +150,15 @@ def screenshot() -> Image.Image:
     path = Path(tempfile.mkdtemp()) / "screen.png"
     subprocess.run(["screencapture", "-x", "-D", "1", str(path)], check=True, capture_output=True)
     return Image.open(path).convert("RGB")
+
+
+def ocr_lines(image: Image.Image) -> list[Line]:
+    """Apple Vision OCR: one entry per recognised line, box in capture pixels."""
+    return [(t, c, tuple(b)) for t, c, b in ocrmac.OCR(image, recognition_level="accurate").recognize(px=True)]
+
+
+def open_file(path: Path, as_text: bool = False) -> None:
+    subprocess.run(["open", *(["-t"] if as_text else []), str(path)], check=False)
 
 
 def display_scale(image: Image.Image) -> float:

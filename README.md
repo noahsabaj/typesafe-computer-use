@@ -6,13 +6,13 @@
   <a href="https://github.com/awlevin/typesafe-computer-use/actions/workflows/ci.yaml"><img alt="CI" src="https://github.com/awlevin/typesafe-computer-use/actions/workflows/ci.yaml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white">
-  <img alt="macOS" src="https://img.shields.io/badge/platform-macOS-000000?logo=apple&logoColor=white">
+  <img alt="macOS and Windows" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-000000?logo=apple&logoColor=white">
   <a href="https://docs.typesafe.ai"><img alt="TypeSafe" src="https://img.shields.io/badge/decisions-TypeSafe%20jev-8b5cf6"></a>
   <a href="https://github.com/astral-sh/ruff"><img alt="Ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"></a>
 </p>
 
-**typesafe-computer-use** drives a Mac toward a goal you type in plain English, for about a
-fiftieth of a cent per step. It never sends a screenshot to a big model. Instead it
+**typesafe-computer-use** drives a Mac or a Windows PC toward a goal you type in plain English,
+for about a fiftieth of a cent per step. It never sends a screenshot to a big model. Instead it
 reads the screen deterministically, asks a small classifier which action comes next,
 and only calls a writing model when a text field genuinely needs free text.
 
@@ -48,26 +48,34 @@ reasoning the frontier model does for free has to be rebuilt here as determinist
 
 ## Install
 
-macOS 14 or newer, Python 3.12 or newer, [uv](https://docs.astral.sh/uv/).
+macOS 14 or newer, or Windows 10 1703 or newer. Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
 
 ```
-git clone https://github.com/awlevin/typesafe-computer-use
+git clone https://github.com/noahsabaj/typesafe-computer-use
 cd typesafe-computer-use
 uv sync
 cp .env.example .env     # fill in the keys
 ```
+
+`uv sync` installs only the adapter for the OS it runs on: Vision OCR and pyobjc on macOS,
+Windows OCR, UI Automation, and pynput on Windows.
 
 | variable | required | purpose |
 |---|---|---|
 | `TYPESAFE_API_KEY` | yes | every decision |
 | `ANTHROPIC_API_KEY` | no | `type_text` and writer-proposed URLs |
 | `CLICKER_EMAIL` | no | enables the `type_email` action |
-| `CLICKER_BROWSER` | no | defaults to `Google Chrome` |
+| `CLICKER_BROWSER` | no | defaults to `Google Chrome` on macOS and `chrome` (the executable name) on Windows |
 | `CLICKER_WRITER_MODEL` | no | defaults to `claude-haiku-4-5` |
 
-Grant your terminal **Screen Recording** and **Accessibility** in System Settings >
+**macOS.** Grant your terminal **Screen Recording** and **Accessibility** in System Settings >
 Privacy & Security. Without the first, captures are wallpaper. Without the second,
 synthetic clicks are silently dropped, and `--act` refuses to start.
+
+**Windows.** No permission grants are needed. OCR uses the built-in Windows OCR engine, so
+a language must be installed under Settings > Time & language > Language (English is, by
+default). The browser's address bar is read through UI Automation by its accessible name,
+which is the English one for Chrome, Edge, and Firefox.
 
 ## Use
 
@@ -88,10 +96,10 @@ at `--steps`.
 ## How a step works
 
 ```
-screencapture ─► Vision OCR ─► merge lines into blocks ─► drop lines echoing the goal
+screen capture ─► OCR ─► merge lines into blocks ─► drop lines echoing the goal
                      │
 accessibility ─► focused field (role, label, placeholder, value, frame)
-AppleScript   ─► frontmost app, active tab URL
+window system ─► frontmost app, active tab URL
 clock         ─► local date and time
 dates.py      ─► "dated 2026-10-13 (in 27 days)" on any block containing a date,
                  "near a line dated ..." on its neighbours
@@ -117,8 +125,8 @@ doubt. Keep the action set mutually exclusive.
 
 | key | does |
 |---|---|
-| `click_item` | click the center of the chosen OCR block, converted from Retina pixels to points |
-| `open_site` | AppleScript `open location` for a `SITES` catalog entry, or a URL the writer proposes |
+| `click_item` | click the center of the chosen OCR block, converted from capture pixels to points |
+| `open_site` | open a `SITES` catalog entry, or a URL the writer proposes, in the browser |
 | `switch_to_browser` | bring the browser forward to continue with a page already open there |
 | `type_text` | the writer composes the string; a TypeSafe Noul then checks the field's value |
 | `type_email` | types `$CLICKER_EMAIL`; refused unless a text field is focused |
@@ -160,11 +168,16 @@ Replay a saved capture as if it were live, without touching the screen:
 uv run clicker "same goal" --image runs/<ts>/step-03-raw.png --app "Google Chrome" --url "https://example.com/"
 ```
 
+Run folders from either OS replay on the other: the capture, app name, and URL are all
+the model sees.
+
 ## Layout
 
 ```
 typesafe_computer_use/
-  macos.py        the only module that touches Quartz, AX, AppleScript   (platform adapter)
+  host.py         picks the adapter for this OS; everything else imports only this
+  macos.py        Quartz, AX, AppleScript, Vision OCR                     (macOS adapter)
+  windows.py      Win32, UI Automation, pynput, Windows.Media.Ocr         (Windows adapter)
   perception.py   capture, OCR, block merging, goal-echo filter
   dates.py        date parsing and "in N days" hints
   decide.py       state, criteria, the three-Choice request, the Noul check
@@ -176,14 +189,19 @@ typesafe_computer_use/
 tests/            pure logic: dates, merging, reading order, echo filter, config, decisions
 ```
 
-A Linux port replaces `macos.py` with xdotool and AT-SPI, and swaps Vision OCR for
-PaddleOCR or RapidOCR. Nothing else knows the platform.
+An adapter is about twenty functions, listed in `host.py`. A Linux port would provide them
+over xdotool and AT-SPI with PaddleOCR or RapidOCR. Nothing else knows the platform.
+
+Windows differences worth knowing: Windows OCR reports no per-line confidence, so every
+line passes the OCR confidence gate. The process is made DPI aware, so the capture, the
+mouse, and UI Automation all agree on physical pixels. `frontmost_app` reports the
+executable name (`chrome`, `msedge`, `code`), and `activate` and `open_site` match on it.
 
 ## Known limits
 
 - OCR only sees text. Icon-only buttons and text over photos are invisible or garbled.
 - Two identical labels get only a coarse region hint and split the vote.
-- Only the main display is captured.
+- Only the main display is captured. On Windows that is the primary monitor.
 - Using the machine during an `--act` run fights it for focus and the cursor.
 - The site catalog is small on purpose; the writer covers the rest.
 
@@ -194,7 +212,7 @@ uv run ruff check . && uv run ruff format --check .
 uv run pytest -q
 ```
 
-CI runs the same on macOS. See [CONTRIBUTING.md](CONTRIBUTING.md).
+CI runs the same on macOS and Windows. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

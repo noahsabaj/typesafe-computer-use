@@ -4,27 +4,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ocrmac import ocrmac
 from PIL import Image
 
-from . import macos
+from . import host
 from .config import MIN_OCR_CONFIDENCE
-from .models import Box, Item, Screen
+from .models import Item, Line, Screen
 
-Line = tuple[str, float, Box]
 ECHO_CHARS = 24
 
 
 def capture(image_path: Path | None = None, app: str | None = None, url: str | None = None, browser: str = "") -> Screen:
     """Capture the main display, or load a saved capture for replay (then app/url are taken as given)."""
     replay = image_path is not None and app is not None
-    image = Image.open(image_path).convert("RGB") if image_path else macos.screenshot()
+    image = Image.open(image_path).convert("RGB") if image_path else host.screenshot()
     return Screen(
         image=image,
-        scale=macos.display_scale(image),
-        app=app or macos.frontmost_app(),
-        field=None if replay else macos.focused_field(),
-        url=url if url is not None else (None if replay else macos.browser_url(browser)),
+        scale=host.display_scale(image),
+        app=app or host.frontmost_app(),
+        field=None if replay else host.focused_field(),
+        url=url if url is not None else (None if replay else host.browser_url(browser)),
     )
 
 
@@ -40,7 +38,7 @@ def is_echo(text: str, echoes: set[str]) -> bool:
 
 
 def ocr(screen: Screen, budget: int, goal: str) -> list[Item]:
-    raw = ocrmac.OCR(screen.image, recognition_level="accurate").recognize(px=True)
+    raw = host.ocr_lines(screen.image)
     echoes = goal_echoes(goal)
     lines: list[Line] = [(t.strip(), c, b) for t, c, b in raw if t.strip() and c >= MIN_OCR_CONFIDENCE and not is_echo(t, echoes)]
     return to_items(merge_blocks(lines), budget)
